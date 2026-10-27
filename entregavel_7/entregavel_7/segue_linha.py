@@ -27,6 +27,8 @@ class SegueLinha(Acao):
         self.lado = self.get_parameter('lado_externo').value
         if self.lado not in ('direita', 'esquerda'):
             raise ValueError('lado_externo deve ser direita ou esquerda')
+        self.cx_linha = None
+        self.w = None
         self.erro = None
         self.ultima_imagem = 0.0
         self.habilitado = True
@@ -56,10 +58,13 @@ class SegueLinha(Acao):
             m = cv2.moments(contorno)
             if m['m00']:
                 centros.append(m['m10'] / m['m00'])
+        self.cx_linha = None
+        self.w = largura / 2
         self.erro = None
         if centros:
             cx = max(centros) if self.lado == 'direita' else min(centros)
-            self.erro = (largura / 2 - cx) / (largura / 2)
+            self.cx_linha = cx
+            self.erro = (self.w - self.cx_linha) / self.w
         self.ultima_imagem = time.monotonic()
 
     def seguir(self):

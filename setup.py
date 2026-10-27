@@ -4,7 +4,8 @@ from setuptools import find_packages, setup
 setup(
     name='entregavel_7',
     version='0.0.1',
-    packages=find_packages(),
+    packages=find_packages(where='entregavel_7'),
+    package_dir={'': 'entregavel_7'},
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/entregavel_7']),
         ('share/entregavel_7', ['package.xml']),

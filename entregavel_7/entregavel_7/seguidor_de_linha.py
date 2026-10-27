@@ -24,6 +24,7 @@ class SeguidorDeLinha(Node, Odom):
         self.acao_node.habilitado = False
         self.robot_state = 'segue_linha'
         self.state_machine = {'segue_linha': self.segue_linha, 'done': self.done}
+        self.estados_clientes = ['segue_linha']
         self.iniciando = True
         self.origem = None
         self.inicio = time.monotonic()
@@ -37,6 +38,7 @@ class SeguidorDeLinha(Node, Odom):
             return
         if self.origem is None:
             self.origem = (self.x, self.y)
+            self.inicio = time.monotonic()
             self.acao_node.reset()
             self.get_logger().info('Seguindo a linha.')
         distancia = math.hypot(self.x - self.origem[0], self.y - self.origem[1])
