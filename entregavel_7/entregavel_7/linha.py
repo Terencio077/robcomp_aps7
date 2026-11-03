@@ -1,15 +1,11 @@
 """Detecção da linha amarela usada pela ação SegueLinha.
 
-Ideia geral (resolve "pular para o próximo pedaço amarelo" e "ir reto"):
-
-1. Só considera os blobs amarelos que chegam perto da base da imagem
-   (perto do robô). Um pedaço da pista que aparece lá na frente, solto,
-   nunca é escolhido.
-2. Entre esses blobs, fica com o que continua a linha do quadro anterior.
-3. Dentro do blob escolhido, sobe fatia por fatia a partir da base, sempre
-   pegando o trecho mais próximo do ponto da fatia de baixo. Assim, numa
-   curva, o robô segue a própria linha e não a média de dois trechos.
-4. Devolve um ponto perto (posição) e um ponto longe (antecipa a curva).
+1. Considera só os trechos amarelos que chegam perto da base da imagem.
+2. Entre eles, escolhe o que continua a linha do quadro anterior.
+3. Percorre esse trecho em fatias horizontais, da base para cima, sempre
+   pegando o segmento mais próximo do ponto da fatia de baixo.
+4. Devolve os pontos da linha: o mais baixo dá a posição e o mais alto
+   antecipa a curva.
 """
 
 import cv2
@@ -93,7 +89,7 @@ def localizar_linha(bgr, x_anterior=None, lado='direita', roi_inicio=0.5,
     pontos = []
     # A primeira fatia usa a posição e a largura da linha no quadro anterior:
     # se a junção de dois ramos já chegou na base da imagem, o centro do
-    # trecho fundido não engana.
+    # trecho fundido não desloca o ponto.
     x_ref = x_base if x_anterior is None else x_anterior
     largura_ref = largura_anterior
     largura_base = None
@@ -136,7 +132,7 @@ def localizar_linha(bgr, x_anterior=None, lado='direita', roi_inicio=0.5,
         # bem mais largo que o da fatia de baixo não é só a linha.
         if largura_trecho > 1.2 * largura_ref + 4:
             # Curva fechada, junção de dois ramos ou cruzamento. O centro do
-            # trecho é a média dos ramos e engana. Decide para onde ir:
+            # trecho é a média dos ramos, então decide para onde ir:
             folga = 0.2 * largura_ref + 3
             esquerda = (x_ref - meia) - ini > folga
             direita = fim - (x_ref + meia) > folga

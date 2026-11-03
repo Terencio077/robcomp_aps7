@@ -2,26 +2,12 @@
 
 Estados:
     buscar -> centralizar -> aproximar -> preparar -> alinhar -> avancar
-           -> fechar -> levantar -> done
+           -> fechar -> levantar -> girar -> baixar -> soltar -> recuar -> done
 
-Por que o robô batia no creeper antes:
-  * A aproximação final dependia de a distância da tag chegar a 0.20 m. Perto
-    da garra a tag sai da imagem (ou a leitura não chega nesse valor) e a
-    garra encosta no creeper antes, empurrando ele. distancia_captura PRECISA
-    ser calibrada no robô (ver modo calibrar).
-  * O centro da garra não é necessariamente o centro da imagem. Centralizar
-    a tag no meio da imagem pode deixar a garra torta e um dedo bate no
-    creeper. O parâmetro centro_garra corrige isso.
-
-Agora: com o robô parado a distancia_preparo, mede a distância, alinha, e faz
-o avanço final pela odometria (mantendo o rumo), andando exatamente
-distancia_medida - distancia_captura. Se a tag ainda estiver visível, ela
-também corrige o rumo e pode mandar parar antes.
-
-Calibração (robô parado, garra abre e ombro vai para frente sozinhos):
+Calibração (robô parado, garra aberta e ombro para frente):
     ros2 run entregavel_7 pega_creeper --ros-args -p calibrar:=true
-Coloque o creeper DENTRO da garra aberta, onde ela deve fechar, e leia d e e
-na tela/terminal:  distancia_captura := d   e   centro_garra := e.
+Com o creeper dentro da garra aberta, d é a distancia_captura e e é o
+centro_garra.
 """
 
 import math
@@ -60,8 +46,8 @@ class PegaCreeper(Acao, Garra, Odom):
             ('velocidade', 0.10),
             ('velocidade_final', 0.04),
             ('distancia_preparo', 0.45),
-            ('distancia_captura', 0.20),
-            ('centro_garra', 0.0),
+            ('distancia_captura', 0.097),
+            ('centro_garra', 0.073),
             ('tolerancia', 0.04),
             ('avanco_maximo', 0.40),
             ('tempo_garra', 3.0),
@@ -132,7 +118,7 @@ class PegaCreeper(Acao, Garra, Odom):
             'recuar': self.recuar,
         })
         self.get_logger().info(
-            f'PegaCreeper v7 (gira, solta, recua): preparo={self.distancia_preparo:.2f} m, '
+            f'PegaCreeper: preparo={self.distancia_preparo:.2f} m, '
             f'captura={self.distancia_captura:.2f} m, centro_garra={self.centro_garra:+.3f}'
             + ('  [MODO CALIBRAR]' if self.calibrar else '')
         )
@@ -198,7 +184,6 @@ class PegaCreeper(Acao, Garra, Odom):
             for t in visiveis:
                 self.get_logger().info(
                     f'CALIBRAR: tag {t.id}: d={t.distance:.3f} m  e={self.erro_de(t):+.3f}'
-                    '  -> use distancia_captura:=d  centro_garra:=e'
                 )
             return
         erro = '--' if self.erro is None else f'{self.erro:+.3f}'
@@ -351,8 +336,7 @@ class PegaCreeper(Acao, Garra, Odom):
             return
         if time.monotonic() - self.ultima_odom > 0.5 or self.yaw is None:
             return
-        # Só mede a distância (média de vários quadros). Não gira: o
-        # alinhamento já foi feito uma vez no centralizar.
+        # Mede a distância (mediana de vários quadros), sem girar.
         self.alinhado_frames += 1
         self.medidas.append(self.distancia)
         if self.alinhado_frames < 6:
@@ -385,9 +369,7 @@ class PegaCreeper(Acao, Garra, Odom):
         if self.alvo_visivel():
             # Se a tag ainda aparece, ela também pode mandar parar antes.
             restante = min(restante, self.distancia - self.distancia_captura)
-        # Avanço final 100% reto: o alinhamento já foi feito parado no estado
-        # alinhar. Perto da garra a leitura da tag fica ruim e fazia o robô
-        # girar do nada, então aqui não há nenhuma correção angular.
+        # Avanço final em linha reta; o alinhamento é feito no centralizar.
         self.twist.angular.z = 0.0
         if restante <= 0.0:
             self.twist = Twist()
