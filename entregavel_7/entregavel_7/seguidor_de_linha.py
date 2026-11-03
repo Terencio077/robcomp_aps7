@@ -16,10 +16,13 @@ class SeguidorDeLinha(Node, Odom):
         Odom.__init__(self)
         self.declare_parameter('distancia_saida', 0.8)
         self.declare_parameter('distancia_chegada', 0.25)
+        self.declare_parameter('raio_chegada', 0.6)
         self.distancia_saida = self.get_parameter('distancia_saida').value
         self.distancia_chegada = self.get_parameter('distancia_chegada').value
-        if not 0 < self.distancia_chegada < self.distancia_saida:
-            raise ValueError('Use 0 < distancia_chegada < distancia_saida')
+        self.raio_chegada = self.get_parameter('raio_chegada').value
+        if not 0 < self.distancia_chegada < self.raio_chegada < self.distancia_saida:
+            raise ValueError('Use 0 < distancia_chegada < raio_chegada < distancia_saida')
+        self.menor_distancia = math.inf
         self.acao_node = SegueLinha()
         self.acao_node.habilitado = False
         self.robot_state = 'segue_linha'
@@ -44,11 +47,24 @@ class SeguidorDeLinha(Node, Odom):
         distancia = math.hypot(self.x - self.origem[0], self.y - self.origem[1])
         if distancia > self.distancia_saida:
             self.iniciando = False
-        if not self.iniciando and distancia < self.distancia_chegada:
+        if self.iniciando:
+            return
+        # A odometria escorrega ao longo da volta, então o robô pode passar
+        # ao lado da origem sem chegar a menos de distancia_chegada. Dentro
+        # do raio de chegada, para quando a distância começar a aumentar
+        # (passou do ponto mais próximo da origem).
+        chegou = distancia < self.distancia_chegada
+        if distancia < self.raio_chegada:
+            self.menor_distancia = min(self.menor_distancia, distancia)
+            if distancia > self.menor_distancia + 0.05:
+                chegou = True
+        if chegou:
             self.acao_node.stop()
             self.robot_state = 'done'
             duracao = time.monotonic() - self.inicio
-            self.get_logger().info(f'Volta concluída em {duracao:.1f} s.')
+            self.get_logger().info(
+                f'Volta concluída em {duracao:.1f} s (a {distancia:.2f} m da origem).'
+            )
 
     def done(self):
         self.acao_node.stop()
